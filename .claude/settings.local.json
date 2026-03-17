@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go build:*)",
+      "Bash(docker compose:*)",
+      "Bash(curl -s -X POST localhost:3000/v1/points/calculate -H 'Content-Type: application/json' -d '{\"\"net_price\"\":350}')"
+    ]
+  }
+}
