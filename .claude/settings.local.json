@@ -6,7 +6,13 @@
       "Bash(curl -s -X POST localhost:3000/v1/points/calculate -H 'Content-Type: application/json' -d '{\"\"net_price\"\":350}')",
       "Bash(go get:*)",
       "Bash(docker volume:*)",
-      "Bash(curl -si localhost:3000/v1/health -H \"Origin: http://localhost:8080\")"
+      "Bash(curl -si localhost:3000/v1/health -H \"Origin: http://localhost:8080\")",
+      "Bash(grep -E \"\\\\.\\(ts|js|json\\)$\")",
+      "Bash(curl -si localhost:8082)",
+      "Bash(curl -s localhost:8082)",
+      "Bash(curl -s -X POST localhost:3000/v1/orders -H \"Content-Type: application/json\" -d '[{\"\"\"\"external_order_id\"\"\"\":\"\"\"\"ORD-001\"\"\"\",\"\"\"\"external_user_id\"\"\"\":\"\"\"\"USR-001\"\"\"\",\"\"\"\"total_from_buyer\"\"\"\":500},{\"\"\"\"external_order_id\"\"\"\":\"\"\"\"ORD-002\"\"\"\",\"\"\"\"external_user_id\"\"\"\":\"\"\"\"USR-002\"\"\"\",\"\"\"\"total_from_buyer\"\"\"\":1200}]')",
+      "Bash(curl -s -X POST localhost:3000/v1/orders -H \"Content-Type: application/json\" -d '[{\"\"external_order_id\"\":\"\"ORD-001\"\",\"\"external_user_id\"\":\"\"USR-001\"\",\"\"total_from_buyer\"\":500},{\"\"external_order_id\"\":\"\"ORD-002\"\",\"\"external_user_id\"\":\"\"USR-002\"\",\"\"total_from_buyer\"\":1200}]')",
+      "Bash(curl -s -X POST localhost:3000/v1/orders -H \"Content-Type: application/json\" -d '[{\"\"external_order_id\"\":\"\"ORD-TEST-1\"\",\"\"external_user_id\"\":\"\"USR-001\"\",\"\"total_from_buyer\"\":750}]')"
     ]
   }
 }

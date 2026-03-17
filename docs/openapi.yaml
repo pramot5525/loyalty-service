@@ -33,27 +33,34 @@ paths:
   /v1/orders:
     post:
       tags: [Orders]
-      summary: Create order and pend points
+      summary: Publish orders to Kafka (array)
+      description: Publishes one or more `order.created` events to Kafka. Orders are processed asynchronously by the consumer.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateOrderRequest"
+              type: array
+              items:
+                $ref: "#/components/schemas/CreateOrderRequest"
             example:
-              external_order_id: "ORD-001"
-              external_user_id: "USR-001"
-              total_from_buyer: 500
-              shipping_cost: 50
-              shipping_discount_by_seller: 0
-              shipping_discount_by_system: 0
+              - external_order_id: "ORD-001"
+                external_user_id: "USR-001"
+                total_from_buyer: 500
+              - external_order_id: "ORD-002"
+                external_user_id: "USR-002"
+                total_from_buyer: 1000
       responses:
-        "201":
-          description: Order created
+        "202":
+          description: Events published to Kafka
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OrderResponse"
+                type: object
+                properties:
+                  published:
+                    type: integer
+                    example: 2
         "400":
           $ref: "#/components/responses/BadRequest"
         "500":
@@ -66,14 +73,20 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ExternalOrderID"
       responses:
-        "200":
-          description: Order completed
+        "202":
+          description: Event published to Kafka
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MessageResponse"
+                type: object
+                properties:
+                  published:
+                    type: integer
+                    example: 1
         "400":
           $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/orders/{id}/cancel:
     put:
@@ -82,14 +95,20 @@ paths:
       parameters:
         - $ref: "#/components/parameters/ExternalOrderID"
       responses:
-        "200":
-          description: Order cancelled
+        "202":
+          description: Event published to Kafka
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MessageResponse"
+                type: object
+                properties:
+                  published:
+                    type: integer
+                    example: 1
         "400":
           $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/points/calculate:
     post:
@@ -174,21 +193,6 @@ components:
           type: number
           format: double
           example: 500
-        shipping_cost:
-          type: number
-          format: double
-          default: 0
-          example: 50
-        shipping_discount_by_seller:
-          type: number
-          format: double
-          default: 0
-          example: 0
-        shipping_discount_by_system:
-          type: number
-          format: double
-          default: 0
-          example: 0
 
     OrderResponse:
       type: object
@@ -225,13 +229,6 @@ components:
           type: integer
           description: Points held from in-flight orders
           example: 0
-
-    MessageResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: order completed
 
     ErrorResponse:
       type: object

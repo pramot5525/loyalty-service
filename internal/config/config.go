@@ -3,11 +3,23 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 )
+
+func splitBrokers(s string) []string {
+	return strings.Split(s, ",")
+}
 
 type Config struct {
 	AppPort string
 	DB      DBConfig
+	Kafka   KafkaConfig
+}
+
+type KafkaConfig struct {
+	Brokers []string
+	Topic   string
+	GroupID string
 }
 
 type DBConfig struct {
@@ -32,6 +44,11 @@ func Load() *Config {
 			User:     getEnv("DB_USER", "loyalty"),
 			Password: getEnv("DB_PASSWORD", "loyalty_pass"),
 			Name:     getEnv("DB_NAME", "loyalty_db"),
+		},
+		Kafka: KafkaConfig{
+			Brokers: splitBrokers(getEnv("KAFKA_BROKERS", "localhost:9092")),
+			Topic:   getEnv("KAFKA_TOPIC", "order.events"),
+			GroupID: getEnv("KAFKA_GROUP_ID", "loyalty-service-group"),
 		},
 	}
 }
