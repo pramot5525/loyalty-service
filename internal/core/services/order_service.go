@@ -39,21 +39,18 @@ func (s *OrderService) CreateOrder(ctx context.Context, in input.CreateOrderInpu
 		return nil, fmt.Errorf("find user: %w", err)
 	}
 
-	// 2. Compute net price and points
-	netPrice := in.TotalFromBuyer - in.ShippingCost + in.ShippingDiscountBySeller + in.ShippingDiscountBySystem
+	// 2. Compute points
+	netPrice := in.TotalFromBuyer
 	points := int(math.Trunc(netPrice / pointRate))
 
 	// 3. Create order
 	order := &domain.Order{
-		ExternalOrderID:          in.ExternalOrderID,
-		UserID:                   user.ID,
-		TotalFromBuyer:           in.TotalFromBuyer,
-		ShippingCost:             in.ShippingCost,
-		ShippingDiscountBySeller: in.ShippingDiscountBySeller,
-		ShippingDiscountBySystem: in.ShippingDiscountBySystem,
-		NetPrice:                 netPrice,
-		EarnedPoint:              points,
-		Status:                   domain.OrderStatusPending,
+		ExternalOrderID: in.ExternalOrderID,
+		UserID:          user.ID,
+		TotalFromBuyer:  in.TotalFromBuyer,
+		NetPrice:        netPrice,
+		EarnedPoint:     points,
+		Status:          domain.OrderStatusPending,
 	}
 	if err := s.orderRepo.Create(ctx, order); err != nil {
 		return nil, fmt.Errorf("create order: %w", err)

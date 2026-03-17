@@ -6,12 +6,9 @@ import (
 )
 
 type CreateOrderInput struct {
-	ExternalOrderID          string
-	ExternalUserID           string
-	TotalFromBuyer           float64
-	ShippingCost             float64
-	ShippingDiscountBySeller float64
-	ShippingDiscountBySystem float64
+	ExternalOrderID string
+	ExternalUserID  string
+	TotalFromBuyer  float64
 }
 
 type OrderUseCase interface {

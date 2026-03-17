@@ -1,15 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	kafkaAdapter "loyalty-service/internal/adapters/kafka"
+	httpAdapter "loyalty-service/internal/adapters/http"
 	"loyalty-service/internal/adapters/repository"
 	"loyalty-service/internal/config"
 	"loyalty-service/internal/core/domain"
 	"loyalty-service/internal/core/services"
-
-	httpAdapter "loyalty-service/internal/adapters/http"
 
 	"github.com/joho/godotenv"
 	"gorm.io/driver/mysql"
@@ -17,18 +22,25 @@ import (
 )
 
 func main() {
-	// Load .env if present (ignore error when not found)
 	_ = godotenv.Load()
 
 	cfg := config.Load()
 
-	// Connect to database
-	db, err := gorm.Open(mysql.Open(cfg.DB.DSN()), &gorm.Config{})
-	if err != nil {
-		log.Fatalf("failed to connect to database: %v", err)
+	// Connect to database — retry until MySQL is ready
+	var db *gorm.DB
+	for i := range 10 {
+		var err error
+		db, err = gorm.Open(mysql.Open(cfg.DB.DSN()), &gorm.Config{})
+		if err == nil {
+			break
+		}
+		log.Printf("db not ready (attempt %d/10): %v — retrying in 3s", i+1, err)
+		time.Sleep(3 * time.Second)
+		if i == 9 {
+			log.Fatalf("failed to connect to database after 10 attempts: %v", err)
+		}
 	}
 
-	// Auto-migrate tables
 	if err := db.AutoMigrate(
 		&domain.User{},
 		&domain.Order{},
@@ -46,9 +58,34 @@ func main() {
 	orderSvc := services.NewOrderService(userRepo, orderRepo, pointTxRepo)
 	pointSvc := services.NewPointService(userRepo)
 
-	// Start HTTP server
-	app := httpAdapter.NewRouter(orderSvc, pointSvc)
+	// Start Kafka consumer + producer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
+	producer := kafkaAdapter.NewProducer(kafkaAdapter.ProducerConfig{
+		Brokers: cfg.Kafka.Brokers,
+		Topic:   cfg.Kafka.Topic,
+	})
+	defer producer.Close()
+
+	consumer := kafkaAdapter.NewConsumer(kafkaAdapter.ConsumerConfig{
+		Brokers: cfg.Kafka.Brokers,
+		Topic:   cfg.Kafka.Topic,
+		GroupID: cfg.Kafka.GroupID,
+	}, orderSvc)
+	consumer.Start(ctx)
+
+	// Graceful shutdown on SIGINT / SIGTERM
+	go func() {
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+		<-quit
+		log.Println("shutting down...")
+		cancel()
+	}()
+
+	// Start HTTP server
+	app := httpAdapter.NewRouter(pointSvc, producer)
 	addr := fmt.Sprintf(":%s", cfg.AppPort)
 	log.Printf("loyalty-service starting on %s", addr)
 	if err := app.Listen(addr); err != nil {
