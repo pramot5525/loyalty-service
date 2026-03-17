@@ -34,7 +34,10 @@ func NewOrderService(
 func (s *OrderService) CreateOrder(ctx context.Context, in input.CreateOrderInput) (*domain.Order, error) {
 	// 2. Compute points
 	netPrice := in.TotalFromBuyer
-	points := int(math.Trunc(netPrice / pointRate))
+	points := 0
+	if netPrice > 0 {
+		points = int(math.Trunc(netPrice / pointRate))
+	}
 
 	var order *domain.Order
 	err := s.transactor.WithTx(ctx, func(ctx context.Context) error {
