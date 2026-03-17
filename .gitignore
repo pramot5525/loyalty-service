@@ -1,2 +1,30 @@
-/legacy-code
+# Build output
+/tmp/
+*.exe
+*.out
 
+# Air
+tmp/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+*.test
+*.prof
+
+# Legacy
+/legacy-code
