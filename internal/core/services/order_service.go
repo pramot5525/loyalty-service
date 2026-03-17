@@ -32,7 +32,7 @@ func NewOrderService(
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, in input.CreateOrderInput) (*domain.Order, error) {
-	// 2. Compute points
+	// 1. Compute points
 	netPrice := in.TotalFromBuyer
 	points := 0
 	if netPrice > 0 {
@@ -41,7 +41,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, in input.CreateOrderInpu
 
 	var order *domain.Order
 	err := s.transactor.WithTx(ctx, func(ctx context.Context) error {
-		// 1. Upsert user
+		// 2. Upsert user
 		if err := s.userRepo.Upsert(ctx, &domain.User{ExternalID: in.ExternalUserID}); err != nil {
 			return fmt.Errorf("upsert user: %w", err)
 		}
