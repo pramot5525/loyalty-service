@@ -14,63 +14,76 @@ type OrderService struct {
 	userRepo    output.UserRepository
 	orderRepo   output.OrderRepository
 	pointTxRepo output.PointTransactionRepository
+	transactor  output.Transactor
 }
 
 func NewOrderService(
 	userRepo output.UserRepository,
 	orderRepo output.OrderRepository,
 	pointTxRepo output.PointTransactionRepository,
+	transactor output.Transactor,
 ) *OrderService {
 	return &OrderService{
 		userRepo:    userRepo,
 		orderRepo:   orderRepo,
 		pointTxRepo: pointTxRepo,
+		transactor:  transactor,
 	}
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, in input.CreateOrderInput) (*domain.Order, error) {
-	// 1. Upsert user
-	user := &domain.User{ExternalID: in.ExternalUserID}
-	if err := s.userRepo.Upsert(ctx, user); err != nil {
-		return nil, fmt.Errorf("upsert user: %w", err)
-	}
-	user, err := s.userRepo.FindByExternalID(ctx, in.ExternalUserID)
-	if err != nil {
-		return nil, fmt.Errorf("find user: %w", err)
-	}
-
-	// 2. Compute points
+	// 1. Compute points
 	netPrice := in.TotalFromBuyer
-	points := int(math.Trunc(netPrice / pointRate))
-
-	// 3. Create order
-	order := &domain.Order{
-		ExternalOrderID: in.ExternalOrderID,
-		UserID:          user.ID,
-		TotalFromBuyer:  in.TotalFromBuyer,
-		NetPrice:        netPrice,
-		EarnedPoint:     points,
-		Status:          domain.OrderStatusPending,
-	}
-	if err := s.orderRepo.Create(ctx, order); err != nil {
-		return nil, fmt.Errorf("create order: %w", err)
+	points := 0
+	if netPrice > 0 {
+		points = int(math.Trunc(netPrice / pointRate))
 	}
 
-	// 4. Create point transaction (PENDING)
-	tx := &domain.PointTransaction{
-		UserID:  user.ID,
-		OrderID: order.ID,
-		Point:   points,
-		Type:    domain.TransactionTypeEarn,
-		Status:  domain.TransactionStatusPending,
-	}
-	if err := s.pointTxRepo.Create(ctx, tx); err != nil {
-		return nil, fmt.Errorf("create point transaction: %w", err)
-	}
+	var order *domain.Order
+	err := s.transactor.WithTx(ctx, func(ctx context.Context) error {
+		// 2. Upsert user
+		if err := s.userRepo.Upsert(ctx, &domain.User{ExternalID: in.ExternalUserID}); err != nil {
+			return fmt.Errorf("upsert user: %w", err)
+		}
+		user, err := s.userRepo.FindByExternalID(ctx, in.ExternalUserID)
+		if err != nil {
+			return fmt.Errorf("find user: %w", err)
+		}
 
-	// 5. Increment user pending_point
-	if err := s.userRepo.UpdatePoints(ctx, user.ID, 0, points); err != nil {
-		return nil, fmt.Errorf("update pending points: %w", err)
+		// 3. Create order
+		order = &domain.Order{
+			ExternalOrderID: in.ExternalOrderID,
+			UserID:          user.ID,
+			TotalFromBuyer:  in.TotalFromBuyer,
+			NetPrice:        netPrice,
+			EarnedPoint:     points,
+			Status:          domain.OrderStatusPending,
+		}
+		if err := s.orderRepo.Create(ctx, order); err != nil {
+			return fmt.Errorf("create order: %w", err)
+		}
+
+		// 4. Create point transaction (PENDING)
+		pointTx := &domain.PointTransaction{
+			UserID:  user.ID,
+			OrderID: order.ID,
+			Point:   points,
+			Type:    domain.TransactionTypeEarn,
+			Status:  domain.TransactionStatusPending,
+		}
+		if err := s.pointTxRepo.Create(ctx, pointTx); err != nil {
+			return fmt.Errorf("create point transaction: %w", err)
+		}
+
+		// 5. Increment user pending_point
+		if err := s.userRepo.UpdatePoints(ctx, user.ID, 0, points); err != nil {
+			return fmt.Errorf("update pending points: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return order, nil

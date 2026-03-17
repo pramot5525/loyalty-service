@@ -5,6 +5,10 @@ import (
 	"loyalty-service/internal/core/domain"
 )
 
+type Transactor interface {
+	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
 type UserRepository interface {
 	FindByExternalID(ctx context.Context, externalID string) (*domain.User, error)
 	Upsert(ctx context.Context, user *domain.User) error

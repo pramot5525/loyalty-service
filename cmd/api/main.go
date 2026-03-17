@@ -53,9 +53,10 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
 	pointTxRepo := repository.NewPointTransactionRepository(db)
+	transactor := repository.NewTransactor(db)
 
 	// Wire services
-	orderSvc := services.NewOrderService(userRepo, orderRepo, pointTxRepo)
+	orderSvc := services.NewOrderService(userRepo, orderRepo, pointTxRepo, transactor)
 	pointSvc := services.NewPointService(userRepo)
 
 	// Start Kafka consumer + producer
@@ -75,19 +76,23 @@ func main() {
 	}, orderSvc)
 	consumer.Start(ctx)
 
+	// Start HTTP server
+	app := httpAdapter.NewRouter(pointSvc, producer, cfg.CORSOrigins)
+	addr := fmt.Sprintf(":%s", cfg.AppPort)
+	log.Printf("loyalty-service starting on %s", addr)
+
 	// Graceful shutdown on SIGINT / SIGTERM
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		quit := make(chan os.Signal, 1)
-		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 		<-quit
 		log.Println("shutting down...")
 		cancel()
+		if err := app.Shutdown(); err != nil {
+			log.Printf("server shutdown error: %v", err)
+		}
 	}()
 
-	// Start HTTP server
-	app := httpAdapter.NewRouter(pointSvc, producer)
-	addr := fmt.Sprintf(":%s", cfg.AppPort)
-	log.Printf("loyalty-service starting on %s", addr)
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

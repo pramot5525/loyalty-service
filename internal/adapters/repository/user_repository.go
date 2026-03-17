@@ -19,7 +19,7 @@ func NewUserRepository(db *gorm.DB) *userRepository {
 
 func (r *userRepository) FindByExternalID(ctx context.Context, externalID string) (*domain.User, error) {
 	var user domain.User
-	err := r.db.WithContext(ctx).Where("external_id = ?", externalID).First(&user).Error
+	err := dbFromCtx(ctx, r.db).WithContext(ctx).Where("external_id = ?", externalID).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +27,7 @@ func (r *userRepository) FindByExternalID(ctx context.Context, externalID string
 }
 
 func (r *userRepository) Upsert(ctx context.Context, user *domain.User) error {
-	return r.db.WithContext(ctx).
+	return dbFromCtx(ctx, r.db).WithContext(ctx).
 		Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "external_id"}},
 			DoNothing: true,
@@ -36,7 +36,7 @@ func (r *userRepository) Upsert(ctx context.Context, user *domain.User) error {
 }
 
 func (r *userRepository) UpdatePoints(ctx context.Context, userID uint, balanceDelta int, pendingDelta int) error {
-	return r.db.WithContext(ctx).Model(&domain.User{}).
+	return dbFromCtx(ctx, r.db).WithContext(ctx).Model(&domain.User{}).
 		Where("id = ?", userID).
 		Updates(map[string]interface{}{
 			"point_balance": gorm.Expr("point_balance + ?", balanceDelta),

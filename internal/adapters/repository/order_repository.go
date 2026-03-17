@@ -17,12 +17,12 @@ func NewOrderRepository(db *gorm.DB) *orderRepository {
 }
 
 func (r *orderRepository) Create(ctx context.Context, order *domain.Order) error {
-	return r.db.WithContext(ctx).Create(order).Error
+	return dbFromCtx(ctx, r.db).WithContext(ctx).Create(order).Error
 }
 
 func (r *orderRepository) FindByExternalID(ctx context.Context, externalOrderID string) (*domain.Order, error) {
 	var order domain.Order
-	err := r.db.WithContext(ctx).Where("external_order_id = ?", externalOrderID).First(&order).Error
+	err := dbFromCtx(ctx, r.db).WithContext(ctx).Where("external_order_id = ?", externalOrderID).First(&order).Error
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func (r *orderRepository) FindByExternalID(ctx context.Context, externalOrderID 
 }
 
 func (r *orderRepository) UpdateStatus(ctx context.Context, id uint, status domain.OrderStatus) error {
-	return r.db.WithContext(ctx).Model(&domain.Order{}).
+	return dbFromCtx(ctx, r.db).WithContext(ctx).Model(&domain.Order{}).
 		Where("id = ?", id).
 		Update("status", status).Error
 }
