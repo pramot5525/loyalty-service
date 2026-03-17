@@ -17,12 +17,12 @@ func NewPointTransactionRepository(db *gorm.DB) *pointTransactionRepository {
 }
 
 func (r *pointTransactionRepository) Create(ctx context.Context, tx *domain.PointTransaction) error {
-	return r.db.WithContext(ctx).Create(tx).Error
+	return dbFromCtx(ctx, r.db).WithContext(ctx).Create(tx).Error
 }
 
 func (r *pointTransactionRepository) FindByOrderID(ctx context.Context, orderID uint) (*domain.PointTransaction, error) {
 	var tx domain.PointTransaction
-	err := r.db.WithContext(ctx).Where("order_id = ?", orderID).First(&tx).Error
+	err := dbFromCtx(ctx, r.db).WithContext(ctx).Where("order_id = ?", orderID).First(&tx).Error
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func (r *pointTransactionRepository) FindByOrderID(ctx context.Context, orderID 
 }
 
 func (r *pointTransactionRepository) UpdateStatus(ctx context.Context, id uint, status domain.TransactionStatus) error {
-	return r.db.WithContext(ctx).Model(&domain.PointTransaction{}).
+	return dbFromCtx(ctx, r.db).WithContext(ctx).Model(&domain.PointTransaction{}).
 		Where("id = ?", id).
 		Update("status", status).Error
 }

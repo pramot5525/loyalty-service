@@ -53,9 +53,10 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
 	pointTxRepo := repository.NewPointTransactionRepository(db)
+	transactor := repository.NewTransactor(db)
 
 	// Wire services
-	orderSvc := services.NewOrderService(userRepo, orderRepo, pointTxRepo)
+	orderSvc := services.NewOrderService(userRepo, orderRepo, pointTxRepo, transactor)
 	pointSvc := services.NewPointService(userRepo)
 
 	// Start Kafka consumer + producer
