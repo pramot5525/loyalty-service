@@ -1,0 +1,261 @@
+openapi: 3.1.0
+info:
+  title: Loyalty Service API
+  version: 1.0.0
+  description: Core loyalty point calculation and management service.
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Health
+  - name: Orders
+  - name: Points
+
+paths:
+  /v1/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /v1/orders:
+    post:
+      tags: [Orders]
+      summary: Create order and pend points
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+            example:
+              external_order_id: "ORD-001"
+              external_user_id: "USR-001"
+              total_from_buyer: 500
+              shipping_cost: 50
+              shipping_discount_by_seller: 0
+              shipping_discount_by_system: 0
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/orders/{id}/complete:
+    put:
+      tags: [Orders]
+      summary: Complete order — move pending points to balance
+      parameters:
+        - $ref: "#/components/parameters/ExternalOrderID"
+      responses:
+        "200":
+          description: Order completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /v1/orders/{id}/cancel:
+    put:
+      tags: [Orders]
+      summary: Cancel order — revert pending points
+      parameters:
+        - $ref: "#/components/parameters/ExternalOrderID"
+      responses:
+        "200":
+          description: Order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /v1/points/calculate:
+    post:
+      tags: [Points]
+      summary: Stateless point calculation (no DB)
+      description: Returns how many points would be earned for a given net price. Formula — `TRUNC(net_price / 50)`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [net_price]
+              properties:
+                net_price:
+                  type: number
+                  format: double
+                  example: 350
+      responses:
+        "200":
+          description: Calculated points
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  net_price:
+                    type: number
+                    example: 350
+                  point:
+                    type: integer
+                    example: 7
+
+  /v1/users/{id}/points:
+    get:
+      tags: [Points]
+      summary: Get user point balance
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: External user ID
+          schema:
+            type: string
+          example: USR-001
+      responses:
+        "200":
+          description: User point balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPointsResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  parameters:
+    ExternalOrderID:
+      name: id
+      in: path
+      required: true
+      description: External order ID
+      schema:
+        type: string
+      example: ORD-001
+
+  schemas:
+    CreateOrderRequest:
+      type: object
+      required:
+        - external_order_id
+        - external_user_id
+        - total_from_buyer
+      properties:
+        external_order_id:
+          type: string
+          example: ORD-001
+        external_user_id:
+          type: string
+          example: USR-001
+        total_from_buyer:
+          type: number
+          format: double
+          example: 500
+        shipping_cost:
+          type: number
+          format: double
+          default: 0
+          example: 50
+        shipping_discount_by_seller:
+          type: number
+          format: double
+          default: 0
+          example: 0
+        shipping_discount_by_system:
+          type: number
+          format: double
+          default: 0
+          example: 0
+
+    OrderResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        external_order_id:
+          type: string
+          example: ORD-001
+        net_price:
+          type: number
+          format: double
+          example: 450
+        earned_point:
+          type: integer
+          example: 9
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, CANCELLED]
+          example: PENDING
+
+    UserPointsResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          example: USR-001
+        point_balance:
+          type: integer
+          description: Confirmed points from completed orders
+          example: 9
+        pending_point:
+          type: integer
+          description: Points held from in-flight orders
+          example: 0
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: order completed
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: order not found
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

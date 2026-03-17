@@ -1,0 +1,55 @@
+services:
+  app:
+    build:
+      context: .
+      target: dev
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: loyalty
+      DB_PASSWORD: loyalty_pass
+      DB_NAME: loyalty_db
+      APP_PORT: 3000
+    volumes:
+      - .:/app
+      - go_cache:/root/.cache/go-build
+      - go_pkg:/go/pkg/mod
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: loyalty_db
+      MYSQL_USER: loyalty
+      MYSQL_PASSWORD: loyalty_pass
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uloyalty", "-ployalty_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  swagger:
+    image: swaggerapi/swagger-ui
+    ports:
+      - "8080:8080"
+    environment:
+      SWAGGER_JSON: /docs/openapi.yaml
+    volumes:
+      - ./docs:/docs
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  go_cache:
+  go_pkg:
