@@ -9,7 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
-func NewRouter(pointUC input.PointUseCase, producer *kafka.Producer) *fiber.App {
+func NewRouter(pointUC input.PointUseCase, producer *kafka.Producer, corsOrigins string) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -17,11 +17,11 @@ func NewRouter(pointUC input.PointUseCase, producer *kafka.Producer) *fiber.App 
 	})
 
 	app.Use(cors.New(cors.Config{
-		AllowOriginsFunc: func(origin string) bool { return true },
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-		AllowHeaders:     "Origin,Content-Type,Accept,Authorization",
-		ExposeHeaders:    "Content-Length",
-		MaxAge:           300,
+		AllowOrigins: corsOrigins,
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+		ExposeHeaders: "Content-Length",
+		MaxAge:        300,
 	}))
 
 	orderH := handler.NewOrderHandler(producer)

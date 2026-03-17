@@ -11,9 +11,10 @@ func splitBrokers(s string) []string {
 }
 
 type Config struct {
-	AppPort string
-	DB      DBConfig
-	Kafka   KafkaConfig
+	AppPort     string
+	CORSOrigins string
+	DB          DBConfig
+	Kafka       KafkaConfig
 }
 
 type KafkaConfig struct {
@@ -37,7 +38,8 @@ func (d DBConfig) DSN() string {
 
 func Load() *Config {
 	return &Config{
-		AppPort: getEnv("APP_PORT", "3000"),
+		AppPort:     getEnv("APP_PORT", "3000"),
+		CORSOrigins: getEnv("CORS_ORIGINS", ""),
 		DB: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "3306"),
